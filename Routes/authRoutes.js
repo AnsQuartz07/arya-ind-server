@@ -3,7 +3,8 @@ const Controller = require("../controller/authController")
 
 router.post('/register', Controller.register);
 router.post('/login', Controller.login);
-router.post('/verify', Controller.verify);
+router.post('/verifyOtp', Controller.verifyOtp);
+router.get('/get-lectures', Controller.authenticateToken, Controller.getLectures);
 router.delete('/:email', Controller.delete);
 // router.post('/bhoot/:email', Controller.bhoot);
 

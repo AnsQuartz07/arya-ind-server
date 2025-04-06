@@ -1,8 +1,10 @@
 const router = require("express").Router();
 const User = require("../models/User");
+const Lecture = require("../models/Lecture");
 const mongoose = require("mongoose");
 const sendOTP = require("../utils/sendEmail");
-const bcrypt = require("bcrypt")
+const bcrypt = require("bcrypt");
+const jwt = require('jsonwebtoken');
 
 module.exports.register = async (payload) => {
     try {
@@ -21,12 +23,11 @@ module.exports.register = async (payload) => {
     
         return {status: 200, message: "Check your email for an otp to verify your email. If it doesn't appear within a few minutes, check your spam folder." };
     } catch (err) {
-        console.log(err)
         throw Error (err)
     }
 }
 
-module.exports.verifyOTP = async (payload) => {
+module.exports.verifyOtp = async (payload) => {
     try {
         const { email, otp } = payload;
         const user = await User.findOne({ email });
@@ -43,7 +44,56 @@ module.exports.verifyOTP = async (payload) => {
     
         return { status: 200, message: 'Email verified successfully' };
     } catch (err) {
-        console.log(err)
         throw Error (err);
     }
-  };
+};
+
+module.exports.login = async (payload) => {
+    try {
+        const { email, password } = payload;
+        // 1. Find user
+        const user = await User.findOne({ email });
+        if (!user) return { status: 404, message: 'User not found' };
+    
+        // 2. Check if verified
+        if (!user.isVerified) {
+            return { status: 403, message: 'Email not verified' };
+        }
+    
+        // 3. Compare password
+        const isMatch = await bcrypt.compare(password, user.password);
+        if (!isMatch) return { status: 401, message: 'Invalid credentials' };
+    
+        // 4. Generate JWT
+        const token = jwt.sign(
+            { userId: user._id, email: user.email },
+            process.env.JWT_SECRET,
+            { expiresIn: '15h' }
+        );
+    
+        return {
+            status: 200,
+            message: 'Login successful',
+            token,
+            user: { id: user._id, name: user.name, email: user.email }
+        };        
+    } catch (err) {
+        throw Error (err);
+    }
+};
+
+module.exports.getLectures = async (moduleId) => {
+    try {
+        const lectures = await Lecture.find({
+            moduleId: moduleId,
+            isDeleted: false,
+        })
+        return {
+            status: 200,
+            message: 'fetched the lectures successfully',
+            data: lectures
+        };
+    } catch (err) {
+        throw Error (err);
+    }
+};

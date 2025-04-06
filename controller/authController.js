@@ -1,5 +1,5 @@
 const Service = require('../Services/authService')
-
+const jwt = require('jsonwebtoken');
 module.exports.register = async (req, res) => {
     try {
         const payload = {
@@ -9,9 +9,9 @@ module.exports.register = async (req, res) => {
         }
         const result = await Service.register(payload) 
         return res.status(result.status).json(result);
-    } catch (err) {
-        console.log(err)
-        res.status(500).json({ message : 'something went wrong', error: err });
+    } catch (e) {
+        console.log("Internal Server Error [register] ", e)
+        res.status(500).json(e.message);
     }
 }
 
@@ -21,26 +21,54 @@ module.exports.login = async (req, res) => {
             email: req.body.email,
             password: req.body.password
         }
-        const result = await Service.authService.login(payload) 
-        return res.status(result.status).json({ message: result.message});
+        const result = await Service.login(payload) 
+        return res.status(result.status).json(result);
     } catch (e) {
-        res.status(500).json({message: 'Invalid Passord'});
+        console.log("Internal Server Error [login] ", e)
+        res.status(500).json(e.message);
     }
 }
 
-module.exports.verify = async (req, res) => {
+module.exports.verifyOtp = async (req, res) => {
     try {
         const payload = {
             email: req.body.email,
             otp: req.body.otp
         }
-        const result = await Service.verifyOTP(payload) 
+        const result = await Service.verifyOtp(payload) 
         return res.status(result.status).json(result);
     } catch (e) {
-        res.status(500).json({message: 'Invalid OTP'});
+        console.log("Internal Server Error [verifyOtp] ", e)
+        res.status(500).json(e.message);
     }
 }
 
+// jwt token authentication
+module.exports.authenticateToken = async (req, res, next) => {
+    try {
+        const authHeader = req.headers['authorization'];
+        // Expected format: "Bearer <token>"
+        const token = authHeader && authHeader.split(' ')[1];
+        if (!token) return res.status(401).json({ message: 'Access denied. No token provided.' });
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        req.user = decoded; // Now `req.user` contains userId and email
+        next();
+    } catch (e) {
+        console.log("Internal Server Error [authenticateToken] ", e );
+        res.status(400).json(e.message);
+    }
+}
+
+module.exports.getLectures = async (req, res) => {
+    try {
+        const moduleId = req.query.moduleId;
+        const result = await Service.getLectures(moduleId)
+        res.status(result.status).json(result);
+    } catch (e) {
+        console.log("Internal Server Error [getLectures] ", e );
+        res.status(500).json(e.message)
+    }
+}
 // delete
 module.exports.delete = async (req, res) => {
     try {
