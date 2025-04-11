@@ -7,6 +7,24 @@ const cors = require('cors');
 
 dotenv.config();
 
+
+// cors trespassing
+const allowedOrigins = [
+  'http://localhost:3000',
+  'https://ans-service.onrender.com',
+];
+
+app.use(cors({
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+}));
+
 // Database connection
 const connectDB = async () => {
   try {
@@ -33,23 +51,6 @@ app.use((req, res, next) => {
 
 // Routes Middlewares
 app.use('/api/user',authRoutes);
-
-// cors trespassing
-const allowedOrigins = [
-  'http://localhost:3000',
-  'https://ans-service.onrender.com',
-];
-
-app.use(cors({
-  origin: function (origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
-  credentials: true,
-}));
 
 // starting the server
 app.listen(process.env.PORT, function () {
