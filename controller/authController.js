@@ -1,3 +1,4 @@
+const User = require('../models/User');
 const Service = require('../Services/authService')
 const jwt = require('jsonwebtoken');
 module.exports.register = async (req, res) => {
@@ -5,7 +6,8 @@ module.exports.register = async (req, res) => {
         const payload = {
             name: req.body.name,
             email: req.body.email,
-            password: req.body.password
+            password: req.body.password,
+            isResend: req.body.isResend
         }
         const result = await Service.register(payload) 
         return res.status(result.status).json(result);
@@ -47,11 +49,10 @@ module.exports.verifyOtp = async (req, res) => {
 module.exports.authenticateToken = async (req, res, next) => {
     try {
         const authHeader = req.headers['authorization'];
-        // Expected format: "Bearer <token>"
         const token = authHeader && authHeader.split(' ')[1];
-        if (!token) return res.status(401).json({ message: 'Access denied. No token provided.' });
+        if (!token) return res.status(401).json({status: 401, message: 'Access denied. No token provided.' });
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        req.user = decoded; // Now `req.user` contains userId and email
+        req.user = decoded;
         next();
     } catch (e) {
         console.log("Internal Server Error [authenticateToken] ", e );
@@ -72,13 +73,15 @@ module.exports.getLectures = async (req, res) => {
 // delete
 module.exports.delete = async (req, res) => {
     try {
-        const payload = {
-            email: req.body.email,
-            password: req.body.password
-        }
-        await Service.authService.delete(payload) 
+        // const payload = {
+        //     email: req.body.email,
+        //     password: req.body.password
+        // }
+        await User.deleteOne({email: req.params.email});
+        // await Service.authService.delete(payload) 
         return res.status(400).json({ message: "Account deleted successfully"});
     } catch (e) {
+        console.log('eeeeeeee', e)
         res.status(500).json({message: 'Invalid Passord'});
     }
 }

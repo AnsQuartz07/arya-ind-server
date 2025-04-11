@@ -6,6 +6,5 @@ router.post('/login', Controller.login);
 router.post('/verifyOtp', Controller.verifyOtp);
 router.get('/get-lectures', Controller.authenticateToken, Controller.getLectures);
 router.delete('/:email', Controller.delete);
-// router.post('/bhoot/:email', Controller.bhoot);
 
 module.exports = router;

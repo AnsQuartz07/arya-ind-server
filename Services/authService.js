@@ -8,20 +8,23 @@ const jwt = require('jsonwebtoken');
 
 module.exports.register = async (payload) => {
     try {
-        const existing = await User.findOne({ email: payload.email });
-
-        if (existing) return {status: 409, message: 'User already exists'};
-    
-        const hashed = await bcrypt.hash(payload.password, 10);
-        const otp = Math.floor(100000 + Math.random() * 900000).toString();
-        const otpExpires = Date.now() + 5 * 60 * 1000; // 5 mins
-    
-        const user = new User({ name: payload.name, email: payload.email, password: hashed, otp, otpExpires });
-        await user.save();
-    
-        await sendOTP(payload.email, otp);
-    
-        return {status: 200, message: "Check your email for an otp to verify your email. If it doesn't appear within a few minutes, check your spam folder." };
+        if(payload.isResend) {
+            const otp = Math.floor(100000 + Math.random() * 900000).toString();
+            const otpExpires = Date.now() + 5 * 60 * 1000; // 5 mins
+            await sendOTP(payload.email, otp, otpExpires);
+            await User.updateOne({email: payload.email}, {$set: {otp, otpExpires}})
+        }
+        else {
+            const existing = await User.findOne({ email: payload.email, isVerified: true, isDeleted: false });
+            if (existing) return {status: 409, message: 'User already exists'};
+            const hashed = await bcrypt.hash(payload.password, 10);
+            const otp = Math.floor(100000 + Math.random() * 900000).toString();
+            const otpExpires = Date.now() + 5 * 60 * 1000; // 5 mins
+            await sendOTP(payload.email, otp);
+            const user = new User({ name: payload.name, email: payload.email, password: hashed, otp, otpExpires });
+            await user.save();
+        }
+        return {status: 200, message: "Otp sent successfully" };
     } catch (err) {
         throw Error (err)
     }
@@ -41,8 +44,14 @@ module.exports.verifyOtp = async (payload) => {
         user.otp = undefined;
         user.otpExpires = undefined;
         await user.save();
-    
-        return { status: 200, message: 'Email verified successfully' };
+
+        const token = jwt.sign(
+            { userId: user._id, email: user.email },
+            process.env.JWT_SECRET,
+            { expiresIn: '15h' }
+        );
+
+        return { status: 200, message: 'Email verified successfully', token , user: {name: user.name, email: user.email} };
     } catch (err) {
         throw Error (err);
     }
@@ -51,20 +60,18 @@ module.exports.verifyOtp = async (payload) => {
 module.exports.login = async (payload) => {
     try {
         const { email, password } = payload;
-        // 1. Find user
         const user = await User.findOne({ email });
         if (!user) return { status: 404, message: 'User not found' };
     
-        // 2. Check if verified
         if (!user.isVerified) {
             return { status: 403, message: 'Email not verified' };
         }
     
-        // 3. Compare password
+        console.log('compare',{ password, bcyp: user.password});
+        
         const isMatch = await bcrypt.compare(password, user.password);
         if (!isMatch) return { status: 401, message: 'Invalid credentials' };
     
-        // 4. Generate JWT
         const token = jwt.sign(
             { userId: user._id, email: user.email },
             process.env.JWT_SECRET,
